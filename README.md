@@ -21,9 +21,7 @@ This repository contains the complete end-to-end stack for FIXIT SLM:
 
 Watch the official deployment and setup guide:
 
-<video src="./FIXIT_SLM_Deployment_Guide.mp4" controls="controls" muted="muted" class="d-block rounded-bottom-2 border-top width-fit" style="max-height:640px; min-height: 200px">
-  Your browser does not support the video tag.
-</video>
+https://github.com/kanaktronics/FixIT-SLM/raw/main/FIXIT_SLM_Deployment_Guide.mp4
 
 ---
 
