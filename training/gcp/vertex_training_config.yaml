@@ -1,0 +1,82 @@
+# FIXIT SLM — Vertex AI Custom Training Job Configuration
+# =========================================================
+# [GCP PLACEHOLDER] — Fill in PROJECT_ID and REGION when GCP is configured.
+#
+# Usage:
+#   gcloud ai custom-jobs create \
+#     --region=us-central1 \
+#     --display-name=fixit-slm-finetune-v1 \
+#     --config=vertex_training_config.yaml
+
+displayName: fixit-slm-finetune-v1
+
+jobSpec:
+  workerPoolSpecs:
+    - machineSpec:
+        machineType: n1-standard-8        # 8 vCPUs, 30GB RAM
+        acceleratorType: NVIDIA_TESLA_T4  # 16GB VRAM — fits Phi-3 Mini QLoRA comfortably
+        acceleratorCount: 1
+      replicaCount: 1
+      diskSpec:
+        bootDiskType: pd-ssd
+        bootDiskSizeGb: 100
+      containerSpec:
+        # TODO: Replace with your Artifact Registry image URI
+        imageUri: us-central1-docker.pkg.dev/PROJECT_ID/fixit-slm/trainer:latest
+        args:
+          - --dataset=gs://fixit-slm-artifacts/dataset/fixit_train.jsonl
+          - --output=gs://fixit-slm-artifacts/checkpoints/
+          - --base_model=microsoft/Phi-3-mini-4k-instruct
+          - --epochs=3
+          - --batch_size=4
+          - --grad_accum=4
+          - --lora_r=16
+          - --learning_rate=0.0002
+          - --max_seq_length=1024
+          - --use_gcs=True
+        env:
+          - name: PYTHONUNBUFFERED
+            value: "1"
+          - name: TOKENIZERS_PARALLELISM
+            value: "false"
+
+  # Timeout: 6 hours should be more than enough for 2000 examples × 3 epochs on T4
+  scheduling:
+    timeout: 21600s
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COST ESTIMATE
+# T4 GPU on Vertex AI Custom Training:
+#   Machine: n1-standard-8 = ~$0.38/hr
+#   T4 GPU:  ~$0.35/hr
+#   Total:   ~$0.73/hr × 4-6 hours = ~$3–5 per training run
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SETUP STEPS (when GCP is ready)
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. Create GCP project and enable APIs:
+#    gcloud services enable aiplatform.googleapis.com
+#    gcloud services enable storage.googleapis.com
+#    gcloud services enable artifactregistry.googleapis.com
+#    gcloud services enable cloudbuild.googleapis.com
+#
+# 2. Create GCS bucket:
+#    gsutil mb -l us-central1 gs://fixit-slm-artifacts
+#
+# 3. Upload dataset:
+#    gsutil cp ./dataset/fixit_train.jsonl gs://fixit-slm-artifacts/dataset/
+#
+# 4. Build and push training Docker image:
+#    docker build -f Dockerfile.trainer -t us-central1-docker.pkg.dev/PROJECT_ID/fixit-slm/trainer:latest .
+#    docker push us-central1-docker.pkg.dev/PROJECT_ID/fixit-slm/trainer:latest
+#
+# 5. Submit training job:
+#    gcloud ai custom-jobs create \
+#      --region=us-central1 \
+#      --display-name=fixit-slm-finetune-v1 \
+#      --config=gcp/vertex_training_config.yaml
+#
+# 6. Monitor job:
+#    gcloud ai custom-jobs list --region=us-central1
+#    gcloud ai custom-jobs describe JOB_ID --region=us-central1
