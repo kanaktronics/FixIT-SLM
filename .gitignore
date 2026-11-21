@@ -21,3 +21,6 @@ web/.env*.local
 __pycache__/
 *.pyc
 training/llama_bin.zip
+
+# Local clone of llama.cpp for GGUF conversion
+training/llama.cpp/
